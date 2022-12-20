@@ -7,6 +7,8 @@ const server = express()
 
 const port = 3001
 
+server.use(express.json()) // If you do not add this line here BEFORE the endpoints, all req.body will be UNDEFINED
+
 // ****************** ENDPOINTS *********************
 server.use("/users", usersRouter) // All users related endpoints will share the same /users prefix in their urls
 

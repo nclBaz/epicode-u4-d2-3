@@ -14,6 +14,7 @@ import express from "express" // 3RD PARTY MODULE (npm i express)
 import fs from "fs" // CORE MODULE (no need to install it!!!)
 import { fileURLToPath } from "url" // CORE MODULE
 import { dirname, join } from "path" // CORE MODULE
+import uniqid from "uniqid" // 3RD PARTY MODULE (npm i uniqid)
 
 const usersRouter = express.Router() // an Express Router is a set of similar endpoints grouped in the same collection
 
@@ -35,15 +36,24 @@ const usersJSONPath = join(dirname(fileURLToPath(import.meta.url)), "users.json"
 
 // 1. POST http://localhost:3001/users/ (+body)
 usersRouter.post("/", (req, res) => {
-  // 1. Read the request the body
+  // 1. Read the request body
+  console.log("REQ BODY:", req.body) // remember to add express.json() into server.js configuration!!!
 
   // 2. Add some server generated informations (unique id, createdAt, ..)
+  const newUser = { ...req.body, createdAt: new Date(), updatedAt: new Date(), id: uniqid() }
 
   // 3. Save the new user into users.json file
+  // 3.1 Read the content of the file, obtaining an array
+  const usersArray = JSON.parse(fs.readFileSync(usersJSONPath))
+
+  // 3.2 Push new user into the array
+  usersArray.push(newUser)
+
+  // 3.3 Write the array back to file
+  fs.writeFileSync(usersJSONPath, JSON.stringify(usersArray)) // We cannot pass an array here as second argument, we shall convert it into a string
 
   // 4. Send back a proper response
-
-  res.send({ message: "Hello I am the POST route" })
+  res.status(201).send({ id: newUser.id })
 })
 
 // 2. GET http://localhost:3001/users/
@@ -59,17 +69,51 @@ usersRouter.get("/", (req, res) => {
 
 // 3. GET http://localhost:3001/users/:userId
 usersRouter.get("/:userId", (req, res) => {
-  res.send({ message: "Hello I am the GET single user route" })
+  // 1. Obtain the userId from the URL
+  const userId = req.params.userId
+  console.log("USER ID: ", userId)
+
+  // 2. Read the file --> obtaining an array
+  const usersArray = JSON.parse(fs.readFileSync(usersJSONPath))
+
+  // 3. Find the specified user in the array
+  const user = usersArray.find(user => user.id === userId)
+
+  // 4. Send it back as a response
+  res.send(user)
 })
 
 // 4. PUT http://localhost:3001/users/:userId
 usersRouter.put("/:userId", (req, res) => {
-  res.send({ message: "Hello I am the UPDATE single user route" })
+  // 1. Read the file obtaining an array
+  const usersArray = JSON.parse(fs.readFileSync(usersJSONPath))
+
+  // 2. Modify the specified user by merging previous properties with the properties coming from req.body
+  const index = usersArray.findIndex(user => user.id === req.params.userId)
+  const oldUser = usersArray[index]
+  const updatedUser = { ...oldUser, ...req.body, updatedAt: new Date() }
+  usersArray[index] = updatedUser
+
+  // 3. Save the modified array back to disk
+  fs.writeFileSync(usersJSONPath, JSON.stringify(usersArray))
+
+  // 4. Send back a proper response
+  res.send(updatedUser)
 })
 
 // 5. DELETE http://localhost:3001/users/:userId
 usersRouter.delete("/:userId", (req, res) => {
-  res.send({ message: "Hello I am the DELETE single user route" })
+  // 1. Read the file obtaining an array
+  const usersArray = JSON.parse(fs.readFileSync(usersJSONPath))
+
+  // 2. Filter out the specified user from the array, keeping just the array of remaining users
+  const remainingUsers = usersArray.filter(user => user.id !== req.params.userId)
+
+  // 3. Save the array of remaining users back to disk
+  fs.writeFileSync(usersJSONPath, JSON.stringify(remainingUsers))
+
+  // 4. Send back a proper response
+  res.send()
 })
 
 export default usersRouter // Please do not forget to export!
